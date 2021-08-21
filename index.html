@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Consecutive 5</title>
+    <style>
+        body {
+            margin: 0;
+            padding-bottom: 3rem;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        #game-canvas {
+            background-color:yellowgreen;
+            margin: 1em;
+            border: 1px solid;
+        }
+
+        #form {
+            background: rgba(0, 0, 0, 0.15);
+            padding: 0.25rem;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            height: 3rem;
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
+        }
+
+        #input {
+            border: none;
+            padding: 0 1rem;
+            flex-grow: 1;
+            border-radius: 2rem;
+            margin: 0.25rem;
+        }
+
+        #input:focus {
+            outline: none;
+        }
+
+        #form>button {
+            background: #333;
+            border: none;
+            padding: 0 1rem;
+            margin: 0.25rem;
+            border-radius: 3px;
+            outline: none;
+            color: #fff;
+        }
+
+        #messages {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #messages>li {
+            padding: 0.5rem 1rem;
+        }
+
+        #messages>li:nth-child(odd) {
+            background: #efefef;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="game-canvas" width="800" height="800">
+
+    </canvas>
+    <button id="reset-game">Reset</button>
+
+    <ul id="messages"></ul>
+    <form id="form" action="">
+        <input id="input" autocomplete="off" /><button>Send</button>
+    </form>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const gridSquaresX = 19;
+        const gridSquaresY = 19;
+        const gameCanvas = document.getElementById('game-canvas');
+        const context = gameCanvas.getContext('2d');
+        const squareWidth = gameCanvas.clientWidth / gridSquaresX;
+        const squareHeight = gameCanvas.clientHeight / gridSquaresY;
+        const resetButton = document.getElementById('reset-game');
+        const socket = io();
+
+
+        const form = document.getElementById('form');
+        const input = document.getElementById('input');
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (input.value) {
+                socket.emit('chat message', input.value);
+                input.value = '';
+            }
+        });
+
+        socket.on('chat message', function (msg) {
+            const item = document.createElement('li');
+            item.textContent = msg;
+            messages.appendChild(item);
+            window.scrollTo(0, document.body.scrollHeight);
+        })
+
+        socket.on('playerTurn', function (coords, userId) {
+            drawCircle(coords.row, coords.column, userId);
+        })
+
+        socket.on('playerWin', function (coords, userId) {
+            drawCircle(coords.row, coords.column, userId);
+            alert(`Player: ${userId} wins!`);
+        })
+
+        socket.on('resetGame', function() {
+            resetBoard();
+        })
+
+        const drawGameBoard = () => {
+            context.beginPath();
+            //draw vertical lines
+            for (let i = 1; i < gridSquaresX; i++) {
+                context.moveTo(i * squareWidth, 0);
+                context.lineTo(i * squareWidth, gameCanvas.clientHeight);
+                context.stroke();
+            }
+            //draw horizontal lines
+            for (let i = 1; i < gridSquaresY; i++) {
+                context.moveTo(0, i * squareHeight);
+                context.lineTo(gameCanvas.clientWidth, i * squareHeight);
+                context.stroke();
+            }
+        }
+
+        const resetBoard = () => {
+            context.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+            drawGameBoard();
+        }
+
+        const drawGameBoardSq = () => {
+            for (let i = 0; i < gridSquaresX; i++) {
+                for (let j = 0; j < gridSquaresY; j++) {
+                    context.beginPath();
+                    context.rect(i * squareWidth, j * squareHeight, squareWidth, squareHeight);
+                    context.stroke();
+                }
+            }
+        }
+
+        const drawCircle = (row, column, userId) => {
+            const radius = squareWidth/2;
+            const startX = (column * squareWidth) + (radius);
+            const startY = (row * squareHeight) + (radius);
+            userId == 1 ? context.fillStyle = 'red' : context.fillStyle = 'green'
+            context.beginPath();            
+            context.arc(startX, startY, radius, 0, 2 * Math.PI);
+            context.fill();
+        }
+
+        const getRowColumn = (event) => {
+            let rect = gameCanvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+            const row = Math.trunc(y / squareHeight);
+            const column = Math.trunc(x / squareWidth);
+            //console.log("Coordinate x: " + x,
+            //    "Coordinate y: " + y);
+            return {
+                row,
+                column
+            };
+        }
+
+        gameCanvas.addEventListener('click', function (e) {
+            const coords = getRowColumn(e);
+            socket.emit('playerTurn', coords, 1)
+
+            //drawCircle(coords.row, coords.column);
+        })
+
+        resetButton.addEventListener('click', function(e) {
+            //resetBoard();
+            socket.emit('resetGame');
+        })
+
+        //drawGameBoardSq();
+        drawGameBoard();
+    </script>
+</body>
+
+</html>

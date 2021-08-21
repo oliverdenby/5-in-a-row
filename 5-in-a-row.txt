@@ -1,0 +1,7 @@
+Goal: 
+use socket.io to make a simple 5 in a row game
+
+Plan:
+2D array for the game map
+server keeps track of the game state.
+client sends the coordinate to the server
